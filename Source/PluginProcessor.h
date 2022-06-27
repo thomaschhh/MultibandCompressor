@@ -149,14 +149,14 @@ public:
     APVTS apvts {*this, nullptr, "Parameters", createParameterLayout()};
 
 private:
-//    juce::dsp::Compressor<float> compressor;
-//
-//    juce::AudioParameterFloat* attack { nullptr };
-//    juce::AudioParameterFloat* release { nullptr };
-//    juce::AudioParameterFloat* threshold { nullptr };
-//    juce::AudioParameterChoice* ratio { nullptr };
-//    juce::AudioParameterBool* bypassed {nullptr};
     CompressorBand compressor;
+    
+    using Filter = juce::dsp::LinkwitzRileyFilter<float>;
+    Filter LP, HP;
+    
+    juce::AudioParameterFloat* lowCrossover { nullptr };
+    
+    std::array<juce::AudioBuffer<float>, 2> filterBuffers;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleMBCompAudioProcessor)
 };
