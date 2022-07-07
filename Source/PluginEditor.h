@@ -130,6 +130,34 @@ void makeAttachment (std::unique_ptr<Attachment>& attachment,
                                               slider);
 }
 
+template<
+    typename APVTS,
+    typename Params,
+    typename Name
+>
+juce::RangedAudioParameter& getParam(APVTS& apts, const Params& params, const Name& name)
+{
+    auto param = apts.getParameter(params.at(name));
+    jassert ( param != nullptr );
+    return *param;
+}
+
+juce::String getValString(const juce::RangedAudioParameter& param,
+                          bool getLow,
+                          juce::String suffix);
+
+template<
+    typename Labels,
+    typename ParamType,
+    typename SuffixType
+>
+void addLabelPairs(Labels& labels, const ParamType& param, const SuffixType& suffix)
+{
+    labels.clear();
+    labels.add({0.f, getValString(param, true, suffix)});
+    labels.add({1.f, getValString(param, false, suffix)});
+}
+
 struct GlobalControls : juce::Component
 {
     // apvts to look up the attachments
@@ -137,7 +165,8 @@ struct GlobalControls : juce::Component
     void paint(juce::Graphics& g) override;
     void resized() override;
 private:
-    RotarySlider inGainSlider, lowMidXoverSlider, midHighXoverSlider, outGainSlider;
+    using RSWL = RotarySliderWithLabels;
+    std::unique_ptr<RSWL> inGainSlider, lowMidXoverSlider, midHighXoverSlider, outGainSlider;
     
     // allocate on heap
     using Attachment = juce::AudioProcessorValueTreeState::SliderAttachment;
