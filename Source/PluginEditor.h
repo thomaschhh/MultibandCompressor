@@ -28,6 +28,11 @@ struct Placeholder : juce::Component
     juce:: Colour customColor;
 };
 
+struct GlobalControls : juce::Component
+{
+    void paint(juce::Graphics& g) override;
+};
+
 /**
 */
 class SimpleMBCompAudioProcessorEditor  : public juce::AudioProcessorEditor
@@ -46,7 +51,8 @@ private:
     SimpleMBCompAudioProcessor& audioProcessor;
     
     // These are the four different sections of the GUI
-    Placeholder controlBar, analyzer, globalControls, bandControls;
+    Placeholder controlBar, analyzer, /*globalControls,*/ bandControls;
+    GlobalControls globalControls;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleMBCompAudioProcessorEditor)
 };
