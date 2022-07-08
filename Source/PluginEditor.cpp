@@ -223,7 +223,6 @@ juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
     juce::Rectangle<int> r;
     r.setSize(size, size);
     r.setCentre(bounds.getCentreX(), 0);
-//    r.setY(2);
     r.setY(bounds.getY());
     
     return r;
@@ -242,11 +241,6 @@ juce::String RotarySliderWithLabels::getDisplayString() const
     {
         float val = getValue();
         
-//        if( val > 999.f )
-//        {
-//            val /= 1000.f; //1001 / 1000 = 1.001
-//            addK = true;
-//        }
         addK = truncateKiloValue(val);
         str = juce::String(val, (addK ? 2 : 0));
     }
@@ -267,7 +261,139 @@ juce::String RotarySliderWithLabels::getDisplayString() const
     return str;
 }
 
+void RotarySliderWithLabels::changeParam(juce::RangedAudioParameter* p)
+{
+    param = p;
+    repaint();
+}
+
+juce::String RatioSlider::getDisplayString() const
+{
+    auto choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param);
+    jassert(choiceParam != nullptr);
+    
+    auto currentChoice = choiceParam->getCurrentChoiceName();
+    
+    if( currentChoice.contains(".0") )
+    {
+        currentChoice = currentChoice.substring(0, currentChoice.indexOf("."));
+    }
+    
+    currentChoice << ":1";
+    
+    return currentChoice;
+}
+
 //==============================================================================
+CompressorBandControls::CompressorBandControls(juce::AudioProcessorValueTreeState& apv) :
+apvts(apv),
+attackSlider(nullptr, "ms", "ATTACK"),
+releaseSlider (nullptr, "ms", "RELEASE"),
+thresholdSlider(nullptr, "dB", " THRESH"),
+ratioSlider(nullptr, "")
+{
+    const auto& params = Params::GetParams();
+    
+    auto getParamHelper = [&params, &apvts = this->apvts] (const auto& name)-> auto&
+    {
+        return getParam(apvts, params, name);
+    };
+    
+    attackSlider.changeParam(&getParamHelper(Params::Names::Attack_Mid_Band));
+    releaseSlider.changeParam(&getParamHelper(Params::Names::Release_Mid_Band));
+    thresholdSlider.changeParam(&getParamHelper(Params::Names::Threshold_Mid_Band));
+    ratioSlider.changeParam(&getParamHelper(Params::Names::Ratio_Mid_Band));
+    
+    
+    addLabelPairs(attackSlider.labels,
+                  getParamHelper(Params::Names::Attack_Mid_Band),
+                  "ms");
+    addLabelPairs(releaseSlider.labels,
+                  getParamHelper(Params::Names::Release_Mid_Band),
+                  "ms");
+    addLabelPairs(thresholdSlider.labels,
+                  getParamHelper(Params::Names::Threshold_Mid_Band),
+                  "dB");
+    ratioSlider.labels.add({0.f, "1:1"});
+    auto ratioParam = dynamic_cast<juce::AudioParameterChoice*>(&getParamHelper(Params::Names::Ratio_Mid_Band));
+    ratioSlider.labels.add({1.0f,
+                            juce::String(ratioParam->choices.getReference(ratioParam->choices.size() - 1).getIntValue()) + ":1"});
+    
+//    auto& attackMidParam = getParamHelper(Params::Names::Attack_Mid_Band);
+//    auto& releaseMidParam = getParamHelper(Params::Names::Release_Mid_Band);
+//    auto& thresholdMidParam = getParamHelper(Params::Names::Threshold_Mid_Band);
+    
+    auto makeAttachmentHelper = [&params, &apvts = this->apvts] (auto& attachment,
+                                                   const auto& name,
+                                                   auto& slider)
+    {
+        makeAttachment (attachment, apvts, params, name, slider);
+    };
+    
+
+    makeAttachmentHelper(attackSliderAttachment,
+                         Params::Names::Attack_Mid_Band,
+                         attackSlider);
+    makeAttachmentHelper(releaseSliderAttachment,
+                         Params::Names::Release_Mid_Band,
+                         releaseSlider);
+    makeAttachmentHelper(thresholdSliderAttachment,
+                         Params::Names::Threshold_Mid_Band,
+                         thresholdSlider);
+    makeAttachmentHelper(ratioSliderAttachment,
+                         Params::Names::Ratio_Mid_Band,
+                         ratioSlider);
+    
+    addAndMakeVisible(attackSlider);
+    addAndMakeVisible(releaseSlider);
+    addAndMakeVisible(thresholdSlider);
+    addAndMakeVisible(ratioSlider);
+}
+
+void CompressorBandControls::resized()
+{
+    auto bounds = getLocalBounds().reduced(5);
+    auto spacer = juce::FlexItem().withWidth(4);
+    auto endCap= juce::FlexItem().withWidth(6);
+    
+    juce::FlexBox flexBox;
+    flexBox.flexDirection = juce::FlexBox::Direction::row;
+    flexBox.flexWrap = juce::FlexBox::Wrap::noWrap;
+    
+    flexBox.items.add(endCap);
+    flexBox.items.add(juce::FlexItem(attackSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(juce::FlexItem(releaseSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(juce::FlexItem(thresholdSlider).withFlex(1.f));
+    flexBox.items.add(spacer);
+    flexBox.items.add(juce::FlexItem(ratioSlider).withFlex(1.f));
+    flexBox.items.add(endCap);
+    
+    flexBox.performLayout(bounds);
+}
+
+void drawModuleBackground(juce::Graphics &g,
+                          juce::Rectangle<int> bounds)
+{
+    g.setColour(juce::Colours::blueviolet);
+    g.fillAll();
+    
+    auto localBounds = bounds;
+    
+    bounds.reduce(3, 3);
+    g.setColour(juce::Colours::black);
+    g.fillRoundedRectangle(bounds.toFloat(), 3);
+    
+    g.drawRect(localBounds);
+}
+
+void CompressorBandControls::paint(juce::Graphics &g)
+{
+    auto bounds = getLocalBounds();
+    drawModuleBackground(g, bounds);
+}
+
 GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 {
 //    using namespace Params;
@@ -283,15 +409,15 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
     auto& lowMidParam = getParamHelper(Params::Names::Low_Mid_Crossover_Freq);
     auto& midHighParam = getParamHelper(Params::Names::Mid_High_Crossover_Freq);
     
-    inGainSlider = std::make_unique<RSWL>(gainInParam, "dB", "Input Gain");
-    outGainSlider = std::make_unique<RSWL>(gainOutParam, "dB", "Output Gain");
-    lowMidXoverSlider = std::make_unique<RSWL>(lowMidParam, "Hz", "Low-Mid X Freq.");
-    midHighXoverSlider = std::make_unique<RSWL>(midHighParam, "Hz", "Mid-High X Freq");
+    inGainSlider = std::make_unique<RSWL>(&gainInParam, "dB", "Input Gain");
+    outGainSlider = std::make_unique<RSWL>(&gainOutParam, "dB", "Output Gain");
+    lowMidXoverSlider = std::make_unique<RSWL>(&lowMidParam, "Hz", "Low-Mid X Freq.");
+    midHighXoverSlider = std::make_unique<RSWL>(&midHighParam, "Hz", "Mid-High X Freq");
     
     
     auto makeAttachmentHelper = [&params, &apvts] (auto& attachment,
-                                                const auto& name,
-                                                auto& slider)
+                                                   const auto& name,
+                                                   auto& slider)
     {
         makeAttachment (attachment, apvts, params, name, slider);
     };
@@ -332,16 +458,7 @@ GlobalControls::GlobalControls(juce::AudioProcessorValueTreeState& apvts)
 void GlobalControls::paint(juce::Graphics &g)
 {
     auto bounds = getLocalBounds();
-    g.setColour(juce::Colours::blueviolet);
-    g.fillAll();
-    
-    auto localBounds = bounds;
-    
-    bounds.reduce(3, 3);
-    g.setColour(juce::Colours::black);
-    g.fillRoundedRectangle(bounds.toFloat(), 3);
-    
-    g.drawRect(localBounds);
+    drawModuleBackground(g, bounds);
 }
     
 void GlobalControls::resized()
@@ -373,6 +490,7 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
+    setLookAndFeel(&lnf);
     
     addAndMakeVisible(controlBar);
     addAndMakeVisible(analyzer);
@@ -384,6 +502,7 @@ SimpleMBCompAudioProcessorEditor::SimpleMBCompAudioProcessorEditor (SimpleMBComp
 
 SimpleMBCompAudioProcessorEditor::~SimpleMBCompAudioProcessorEditor()
 {
+    setLookAndFeel(nullptr);
 }
 
 //==============================================================================
