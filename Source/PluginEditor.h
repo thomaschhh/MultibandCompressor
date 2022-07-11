@@ -192,6 +192,9 @@ private:
     std::unique_ptr<BtnAttachment>  bypassButtonAttachment,
                                     soloButtonAttachment,
                                     muteButtonAttachment;
+    
+    juce::Component::SafePointer<CompressorBandControls> safePtr {this};
+    void updateAttachments();
 };
 
 struct GlobalControls : juce::Component
