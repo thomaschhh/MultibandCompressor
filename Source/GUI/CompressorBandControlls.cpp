@@ -31,16 +31,44 @@ ratioSlider(nullptr, "")
     muteButton.addListener(this);
     
     bypassButton.setName("X");
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::lightcyan);
+    bypassButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
+    
     soloButton.setName("S");
+    soloButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::yellow);
+    soloButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
+    
     muteButton.setName("M");
+    muteButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::darkcyan);
+    muteButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
     
     addAndMakeVisible(bypassButton);
     addAndMakeVisible(soloButton);
     addAndMakeVisible(muteButton);
 
     lowBandButton.setName("Lo");
+    lowBandButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::grey);
+    lowBandButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
+    
     midBandButton.setName("Mid");
+    midBandButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::grey);
+    midBandButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
+    
     highBandButton.setName("Hi");
+    highBandButton.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                            juce::Colours::grey);
+    highBandButton.setColour(juce::TextButton::ColourIds::buttonColourId,
+                            juce::Colours::black);
     
     lowBandButton.setRadioGroupId(1);
     midBandButton.setRadioGroupId(1);
@@ -59,7 +87,10 @@ ratioSlider(nullptr, "")
     highBandButton.onClick = buttonSwitcher;
     
     lowBandButton.setToggleState(true, juce::NotificationType::dontSendNotification);
+    
     updateAttachments();
+    updateSliderEnablements();
+    updateBandSelectButtonStates();
     
     addAndMakeVisible(lowBandButton);
     addAndMakeVisible(midBandButton);
@@ -132,8 +163,81 @@ void CompressorBandControls::buttonClicked(juce::Button *button)
 {
     updateSliderEnablements();
     updateSoloMuteBypassToggleStates(*button);
+    updateActiveBandFillColors(*button);
 }
     
+void CompressorBandControls::updateActiveBandFillColors(juce::Button& clickedButton)
+{
+    jassert(activeBand != nullptr);
+    DBG ( "active band: " << activeBand->getName());
+    
+    if ( clickedButton.getToggleState() == false )
+    {
+        resetActiveBandColors();
+    }
+    else
+    {
+        refreshBandButtonColors(*activeBand, clickedButton);
+    }
+}
+
+void CompressorBandControls::refreshBandButtonColors(juce::Button& band, juce::Button& colorSource)
+{
+    band.setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                   colorSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.setColour(juce::TextButton::ColourIds::buttonColourId,
+                     colorSource.findColour(juce::TextButton::ColourIds::buttonOnColourId));
+    band.repaint();
+}
+
+
+void CompressorBandControls::resetActiveBandColors()
+{
+    activeBand->setColour(juce::TextButton::ColourIds::buttonOnColourId,
+                          juce::Colours::grey);
+    activeBand->setColour(juce::TextButton::ColourIds::buttonColourId,
+                          juce::Colours::black);
+    activeBand->repaint();
+}
+
+void CompressorBandControls::updateBandSelectButtonStates()
+{
+    std::vector<std:: array<Params::Names, 3>> paramsToCheck
+    {
+        {Params::Names::Solo_Low_Band, Params::Names::Mute_Low_Band, Params::Names::Bypassed_Low_Band},
+        {Params::Names::Solo_Mid_Band, Params::Names::Mute_Mid_Band, Params::Names::Bypassed_Mid_Band},
+        {Params::Names::Solo_High_Band, Params::Names::Mute_High_Band, Params::Names::Bypassed_High_Band}
+    };
+    
+    const auto& params = Params::GetParams();
+    
+    auto paramHelper = [&params, this] (const auto& name)
+    {
+        return dynamic_cast<juce::AudioParameterBool*>(&getParam(apvts, params, name));
+    };
+    
+    for ( size_t i = 0; i < paramsToCheck.size(); ++i )
+    {
+        auto& list = paramsToCheck[i];
+        auto* bandButton = (i == 0) ? &lowBandButton :
+                           (i == 1) ? &midBandButton :
+                                      &highBandButton;
+        
+        if ( auto* solo = paramHelper(list[0] ); solo->get())
+        {
+            refreshBandButtonColors(*bandButton,soloButton);
+        }
+        else if( auto* mute = paramHelper (list[1]); mute->get () )
+        {
+            refreshBandButtonColors(*bandButton, muteButton);
+        }
+        else if( auto* byp = paramHelper(list[2]); byp->get() )
+        {
+            refreshBandButtonColors(*bandButton, bypassButton);
+        }
+    }
+}
+
 void CompressorBandControls::updateSliderEnablements()
 {
     auto disabled = muteButton.getToggleState() || bypassButton.getToggleState();
@@ -198,6 +302,8 @@ void CompressorBandControls::updateAttachments()
                 Params::Names::Solo_Low_Band,
                 Params::Names::Bypassed_Low_Band
             };
+            
+            activeBand = &lowBandButton;
             break;
         case Mid:
             names =
@@ -210,6 +316,7 @@ void CompressorBandControls::updateAttachments()
                 Params::Names::Solo_Mid_Band,
                 Params::Names::Bypassed_Mid_Band
             };
+            activeBand = &midBandButton;
             break;
         case High:
             names =
@@ -222,6 +329,7 @@ void CompressorBandControls::updateAttachments()
                 Params::Names::Solo_High_Band,
                 Params::Names::Bypassed_High_Band
             };
+            activeBand = &highBandButton;
             break;
     }
     
