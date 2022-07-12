@@ -495,12 +495,12 @@ juce::AudioProcessorValueTreeState:: ParameterLayout SimpleMBCompAudioProcessor:
     
     layout.add(std::make_unique<juce::AudioParameterFloat>(params.at(Names::Low_Mid_Crossover_Freq),
                                                            params.at(Names::Low_Mid_Crossover_Freq),
-                                                           juce::NormalisableRange<float>(20, 999, 1, 1),
+                                                           juce::NormalisableRange<float>(MIN_FREQUENCY, 999, 1, 1),
                                                            400));
     
     layout.add(std::make_unique<juce::AudioParameterFloat>(params.at(Names::Mid_High_Crossover_Freq),
                                                            params.at(Names::Mid_High_Crossover_Freq),
-                                                           juce::NormalisableRange<float>(1000, 20000, 1, 1),
+                                                           juce::NormalisableRange<float>(1000, MAX_FREQUENCY, 1, 1),
                                                            2000));
     return layout;
 }

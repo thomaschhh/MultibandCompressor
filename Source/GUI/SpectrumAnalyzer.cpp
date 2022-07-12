@@ -10,6 +10,7 @@
 
 #include "SpectrumAnalyzer.h"
 #include "Utilities.h"
+#include "../DSP/Params.h"
 
 SpectrumAnalyzer::SpectrumAnalyzer(SimpleMBCompAudioProcessor& p) :
 audioProcessor(p),
@@ -22,6 +23,20 @@ rightPathProducer(audioProcessor.rightChannelFifo)
         param->addListener(this);
     }
     
+    const auto& paramNames = Params::GetParams();
+    auto floatHelper = [&apvts = audioProcessor.apvts, &paramNames] (auto& param, const auto& paramName)
+    {
+        param = dynamic_cast<juce::AudioParameterFloat*>(apvts.getParameter(paramNames.at(paramName)));
+        jassert(param != nullptr);
+    };
+    
+    floatHelper(lowMidXoverParam, Params::Names::Low_Mid_Crossover_Freq);
+    floatHelper(midHighXoverParam, Params::Names::Mid_High_Crossover_Freq);
+    
+    floatHelper(lowThresholdParam, Params::Names::Threshold_Low_Band);
+    floatHelper(midThresholdParam, Params::Names::Threshold_Mid_Band);
+    floatHelper(highThresholdParam, Params::Names::Threshold_High_Band);
+
     startTimerHz(60);
 }
 
@@ -60,6 +75,51 @@ void SpectrumAnalyzer::drawFFTAnalysis(juce::Graphics& g, juce::Rectangle<int> b
     g.strokePath(rightChannelFFTPath, juce::PathStrokeType(1.f));
 }
 
+void SpectrumAnalyzer::drawCrossovers(juce::Graphics& g, juce::Rectangle<int> bounds)
+{
+    bounds = getAnalysisArea(bounds);
+    
+    const auto top = bounds.getY();
+    const auto bottom = bounds.getBottom();
+    const auto left = bounds.getX();
+    const auto right = bounds.getRight();
+    
+    auto mapX = [left = bounds.getX(),
+                 width = bounds.getWidth()]
+                (float frequency)
+    {
+        auto normX = juce::mapFromLog10(frequency,
+                                        MIN_FREQUENCY,
+                                        MAX_FREQUENCY);
+        return left + width * normX;
+    };
+    
+    auto lowMidX = mapX(lowMidXoverParam->get());
+    g.setColour(juce::Colours::orange);
+    g.drawVerticalLine(lowMidX, top, bottom);
+
+    auto midHighX = mapX(midHighXoverParam->get());
+    g.drawVerticalLine(midHighX, top, bottom);
+    
+    auto mapY = [bottom, top] (float db)
+    {
+        return juce::jmap(db, NEGATIVE_INFINITY, MAX_DECIBELS,
+                    (float)bottom, (float)top);
+    };
+    
+    g.setColour(juce::Colours::yellow);
+    g.drawHorizontalLine(mapY(lowThresholdParam->get()),
+                         left,
+                         lowMidX);
+    g.drawHorizontalLine(mapY(midThresholdParam->get()),
+                         lowMidX,
+                         midHighX);
+    g.drawHorizontalLine(mapY(highThresholdParam->get()),
+                         midHighX,
+                         right);
+    
+}
+
 void SpectrumAnalyzer::paint(juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
@@ -74,6 +134,7 @@ void SpectrumAnalyzer::paint(juce::Graphics& g)
         drawFFTAnalysis(g, bounds);
     }
     
+    drawCrossovers(g, bounds);
     drawTextLabels(g, bounds);
 }
 
@@ -106,7 +167,7 @@ std::vector<float> SpectrumAnalyzer::getXs(const std::vector<float> &freqs, floa
     std::vector<float> xs;
     for( auto f : freqs )
     {
-        auto normX = juce::mapFromLog10(f, 20.f, 20000.f);
+        auto normX = juce::mapFromLog10(f, MIN_FREQUENCY, MAX_FREQUENCY);
         xs.push_back( left + width * normX );
     }
     
