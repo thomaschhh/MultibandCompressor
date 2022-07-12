@@ -51,4 +51,5 @@ private:
     juce::Rectangle<int> getAnalysisArea(juce::Rectangle<int> bounds);
     
     PathProducer leftPathProducer, rightPathProducer;
+    void drawFFTAnalysis(juce::Graphics&, juce::Rectangle<int> bounds);
 };
