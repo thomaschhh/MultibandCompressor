@@ -9,7 +9,7 @@
 */
 
 #include "Utilities.h"
-#include <JuceHeader.h>
+#include "LookAndFeel.h"
 
 juce::String getValString(const juce::RangedAudioParameter& param,
                           bool getLow,
@@ -35,7 +35,7 @@ juce::String getValString(const juce::RangedAudioParameter& param,
 juce::Rectangle<int> drawModuleBackground(juce::Graphics &g,
                           juce::Rectangle<int> bounds)
 {
-    g.setColour(juce::Colours::blueviolet);
+    g.setColour(ColorScheme::getModuleBorderColor());
     g.fillAll();
     
     auto localBounds = bounds;
